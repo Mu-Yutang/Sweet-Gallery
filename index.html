@@ -3,72 +3,69 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>相簿</title>
+    <title>生活紀錄</title>
     <style>
-        /* 基礎樣式 */
         body {
             margin: 0;
             padding: 10px;
-            background-color: #f8f9fa;
-            font-family: -apple-system, system-ui, sans-serif;
+            background-color: #f0f0f0;
+            font-family: sans-serif;
+        }
+
+        /* 瀑布流核心語法 */
+        .masonry-container {
+            /* 根據螢幕寬度自動決定欄數：手機 2 欄，平板以上更多 */
+            column-count: 2; 
+            column-gap: 10px; /* 欄與欄的間距 */
+            width: 100%;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        /* 讓電腦版能顯示更多欄 */
+        @media (min-width: 768px) {
+            .masonry-container { column-count: 3; }
+        }
+        @media (min-width: 1024px) {
+            .masonry-container { column-count: 4; }
+        }
+
+        .img-card {
+            display: inline-block; /* 必須設為 inline-block 防止圖片被切斷 */
+            width: 100%;
+            margin-bottom: 10px; /* 每張圖下方的間距 */
+            background: #fff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .img-card img {
+            width: 100%;    /* 寬度撐滿欄寬 */
+            height: auto;   /* 高度依比例自適應，不裁切 */
+            display: block;
+            transition: transform 0.2s;
         }
 
         h1 {
             text-align: center;
-            color: #444;
             font-size: 1.2rem;
-            margin: 20px 0;
+            color: #333;
+            padding: 20px 0;
         }
 
-        /* 自動填充容器：CSS Grid */
-        .gallery-grid {
-            display: grid;
-            /* 自動填充：每張圖最小 150px，自動平分剩餘空間 */
-            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-            grid-gap: 8px; /* 照片間距 */
-            padding: 5px;
-        }
-
-        /* 圖片容器：確保比例一致 */
-        .img-item {
-            position: relative;
-            width: 100%;
-            padding-top: 100%; /* 1:1 正方形填充 */
-            overflow: hidden;
-            border-radius: 4px;
-            background-color: #eee;
-        }
-
-        .img-item img {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            object-fit: cover; /* 自動填充並裁切多餘部分，讓排版整齊 */
-            transition: transform 0.3s ease;
-        }
-
-        /* 點擊效果 */
-        .img-item img:active {
-            transform: scale(0.95);
-        }
-
-        #status {
-            text-align: center;
-            color: #888;
-            margin-top: 50px;
-        }
+        #status { text-align: center; color: #888; padding: 20px; }
     </style>
 </head>
 <body>
 
     <h1>生活紀錄</h1>
-    <div id="status">照片載入中...</div>
-    <div class="gallery-grid" id="gallery"></div>
+    <div id="status">正在整理照片中...</div>
+    
+    <div class="masonry-container" id="gallery">
+        </div>
 
     <script>
-        // 設定區
         const username = 'Mu-Yutang';
         const repo = 'Sweet-Gallery';
         const folder = 'images'; 
@@ -80,33 +77,32 @@
 
             try {
                 const response = await fetch(apiUrl, { cache: "no-cache" });
-                if (!response.ok) throw new Error();
+                if (!response.ok) throw new Error('無法連線');
                 
                 const data = await response.json();
                 status.style.display = 'none';
 
                 if (Array.isArray(data)) {
-                    // 過濾並倒序（最新照片在前）
+                    // 過濾圖片並倒序排列
                     const images = data.filter(f => f.name.match(/\.(jpg|jpeg|png|gif|webp)$/i)).reverse();
 
                     images.forEach(file => {
-                        // 建立填充容器
-                        const div = document.createElement('div');
-                        div.className = 'img-item';
+                        const card = document.createElement('div');
+                        card.className = 'img-card';
 
                         const img = document.createElement('img');
                         img.src = file.download_url;
                         img.loading = "lazy";
                         
-                        // 點擊看大圖
+                        // 點擊看原圖
                         img.onclick = () => window.open(file.download_url, '_blank');
 
-                        div.appendChild(img);
-                        gallery.appendChild(div);
+                        card.appendChild(img);
+                        gallery.appendChild(card);
                     });
                 }
             } catch (e) {
-                status.innerText = "載入失敗，請確認 images 資料夾內有照片。";
+                status.innerText = "目前讀不到照片，請確認 images 資料夾內有照片喔！";
             }
         }
 
