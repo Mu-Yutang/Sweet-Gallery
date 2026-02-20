@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <title>Aoi 自動照片牆</title>
+    <style>
+        .gallery { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+        img { width: 300px; height: auto; object-fit: cover; border: 2px solid #fff; }
+    </style>
+</head>
+<body>
+    <h2>自動讀取目錄照片</h2>
+    <div class="gallery" id="gallery">讀取中...</div>
+
+    <script>
+        // 設定區
+        const username = '你的GitHub帳號';
+        const repo = '你的專案名稱';
+        const path = 'images'; // 你存放照片的資料夾路徑
+
+        async function loadPhotos() {
+            const url = `https://api.github.com/repos/${username}/${repo}/contents/${path}`;
+            try {
+                const response = await fetch(url);
+                const files = await response.json();
+                const gallery = document.getElementById('gallery');
+                gallery.innerHTML = ''; // 清空
+
+                files.forEach(file => {
+                    // 只抓 jpg, png, webp 等圖片檔
+                    if (file.name.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
+                        const img = document.createElement('img');
+                        img.src = file.download_url; // 直接拿到檔案的原始連結
+                        gallery.appendChild(img);
+                    }
+                });
+            } catch (e) {
+                console.error("讀取失敗:", e);
+                document.getElementById('gallery').innerText = "讀取失敗，請檢查路徑或權限。";
+            }
+        }
+
+        loadPhotos();
+    </script>
+</body>
+</html>
