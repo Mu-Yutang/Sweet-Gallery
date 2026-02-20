@@ -4,99 +4,112 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>生活紀錄</title>
-<style>
-    body {
-        margin: 0;
-        padding: 10px;
-        background-color: #f0f0f0;
-        font-family: sans-serif;
-    }
+    <style>
+        body {
+            margin: 0;
+            padding: 15px;
+            background-color: #f8f9fa;
+            font-family: -apple-system, sans-serif;
+        }
 
-    /* 改用 Flexbox 佈局，讓它更有彈性地填充空間 */
-    .gallery-container {
-        display: flex;
-        flex-wrap: wrap; /* 自動換行 */
-        gap: 15px; /* 圖片之間的間距 */
-        justify-content: center; /* 居中對齊 */
-        align-items: flex-start; /* 頂端對齊，避免高度被強行拉伸 */
-        max-width: 1400px;
-        margin: 0 auto;
-    }
+        h1 {
+            text-align: center;
+            color: #444;
+            font-size: 1.3rem;
+            margin-bottom: 25px;
+        }
 
-    .img-card {
-        background: #fff;
-        border-radius: 8px;
-        overflow: hidden;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        /* 這裡很關鍵：不強制 100%，而是根據圖片內容自動決定寬度 */
-        flex: 0 1 auto; 
-    }
+        #status { text-align: center; color: #888; margin-top: 50px; }
 
-    .img-card img {
-        /* 圖片最大寬度不超過螢幕，但保持原始尺寸 */
-        max-width: 100%; 
-        width: auto; 
-        height: auto;
-        display: block;
-        transition: transform 0.2s;
-    }
+        /* 瀑布流外層容器 */
+        .masonry-wrapper {
+            display: flex;
+            gap: 15px; /* 直欄之間的左右間距 */
+            max-width: 1400px;
+            margin: 0 auto;
+            align-items: flex-start; /* 讓每一欄的內容各自往上對齊，不會被強行拉長 */
+        }
 
-    h1 {
-        text-align: center;
-        font-size: 1.2rem;
-        color: #333;
-        padding: 20px 0;
-    }
+        /* 每一條直欄的設定 */
+        .masonry-column {
+            flex: 1; /* 讓所有欄位平分寬度，填滿畫面 */
+            display: flex;
+            flex-direction: column;
+            gap: 15px; /* 圖片之間的上下間距 */
+        }
 
-    #status { text-align: center; color: #888; padding: 20px; }
-</style>
+        /* 圖片設定 */
+        .masonry-column img {
+            width: 100%; /* 寬度撐滿自己所在的直欄 */
+            height: auto; /* 高度依原比例縮放，不裁切、不變形 */
+            border-radius: 8px;
+            box-shadow: 0 3px 8px rgba(0,0,0,0.1);
+            display: block;
+            transition: opacity 0.3s;
+        }
+
+        .masonry-column img:active { opacity: 0.8; }
+
+        /* 響應式設計：手機螢幕變窄時，自動變回單欄模式 */
+        @media (max-width: 768px) {
+            .masonry-wrapper { flex-direction: column; }
+        }
+    </style>
 </head>
 <body>
 
     <h1>生活紀錄</h1>
-    <div id="status">正在整理照片中...</div>
+    <div id="status">照片排版中...</div>
     
-    <div class="masonry-container" id="gallery">
+    <div class="masonry-wrapper" id="gallery">
         </div>
 
     <script>
         const username = 'Mu-Yutang';
         const repo = 'Sweet-Gallery';
-        const folder = 'images'; 
+        const folder = ''; // 掃描根目錄
 
         async function loadImages() {
             const gallery = document.getElementById('gallery');
             const status = document.getElementById('status');
-            const apiUrl = `https://api.github.com/repos/${username}/${repo}/contents/${folder}`;
+            const apiUrl = `https://api.github.com/repos/${username}/${repo}/contents`;
 
             try {
                 const response = await fetch(apiUrl, { cache: "no-cache" });
-                if (!response.ok) throw new Error('無法連線');
+                if (!response.ok) throw new Error();
                 
                 const data = await response.json();
                 status.style.display = 'none';
 
                 if (Array.isArray(data)) {
-                    // 過濾圖片並倒序排列
+                    // 抓出圖片並倒序（最新在上）
                     const images = data.filter(f => f.name.match(/\.(jpg|jpeg|png|gif|webp)$/i)).reverse();
 
-                    images.forEach(file => {
-                        const card = document.createElement('div');
-                        card.className = 'img-card';
+                    // 判斷當前螢幕寬度，決定要切成幾欄 (電腦3欄，平板2欄，手機1欄)
+                    let colCount = window.innerWidth > 1024 ? 3 : window.innerWidth > 768 ? 2 : 1;
+                    let columns = [];
 
+                    // 預先建立好隱形的直欄
+                    for (let i = 0; i < colCount; i++) {
+                        let col = document.createElement('div');
+                        col.className = 'masonry-column';
+                        columns.push(col);
+                        gallery.appendChild(col);
+                    }
+
+                    // 把照片像發撲克牌一樣，輪流派發給每一欄
+                    images.forEach((file, index) => {
                         const img = document.createElement('img');
                         img.src = file.download_url;
                         img.loading = "lazy";
+                        img.onclick = () => window.open(file.download_url, '_blank'); // 點擊看大圖
                         
-                        // 點擊看原圖
-                        img.onclick = () => window.open(file.download_url, '_blank');
-
-                        card.appendChild(img);
-                        gallery.appendChild(card);
+                        // 計算這張照片該進哪一欄 (0, 1, 2, 0, 1, 2...)
+                        columns[index % colCount].appendChild(img);
                     });
                 }
             } catch (e) {
-                status.innerText = "目前讀不到照片，請確認 images 資料夾內有照片喔！";
+                status.innerText = "讀取失敗，請確認設定。";
             }
         }
 
