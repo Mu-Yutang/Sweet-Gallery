@@ -4,58 +4,52 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>生活紀錄</title>
-    <style>
-        body {
-            margin: 0;
-            padding: 10px;
-            background-color: #f0f0f0;
-            font-family: sans-serif;
-        }
+<style>
+    body {
+        margin: 0;
+        padding: 10px;
+        background-color: #f0f0f0;
+        font-family: sans-serif;
+    }
 
-        /* 瀑布流核心語法 */
-        .masonry-container {
-            /* 根據螢幕寬度自動決定欄數：手機 2 欄，平板以上更多 */
-            column-count: 2; 
-            column-gap: 10px; /* 欄與欄的間距 */
-            width: 100%;
-            max-width: 1200px;
-            margin: 0 auto;
-        }
+    /* 改用 Flexbox 佈局，讓它更有彈性地填充空間 */
+    .gallery-container {
+        display: flex;
+        flex-wrap: wrap; /* 自動換行 */
+        gap: 15px; /* 圖片之間的間距 */
+        justify-content: center; /* 居中對齊 */
+        align-items: flex-start; /* 頂端對齊，避免高度被強行拉伸 */
+        max-width: 1400px;
+        margin: 0 auto;
+    }
 
-        /* 讓電腦版能顯示更多欄 */
-        @media (min-width: 768px) {
-            .masonry-container { column-count: 3; }
-        }
-        @media (min-width: 1024px) {
-            .masonry-container { column-count: 4; }
-        }
+    .img-card {
+        background: #fff;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        /* 這裡很關鍵：不強制 100%，而是根據圖片內容自動決定寬度 */
+        flex: 0 1 auto; 
+    }
 
-        .img-card {
-            display: inline-block; /* 必須設為 inline-block 防止圖片被切斷 */
-            width: 100%;
-            margin-bottom: 10px; /* 每張圖下方的間距 */
-            background: #fff;
-            border-radius: 8px;
-            overflow: hidden;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        }
+    .img-card img {
+        /* 圖片最大寬度不超過螢幕，但保持原始尺寸 */
+        max-width: 100%; 
+        width: auto; 
+        height: auto;
+        display: block;
+        transition: transform 0.2s;
+    }
 
-        .img-card img {
-            width: 100%;    /* 寬度撐滿欄寬 */
-            height: auto;   /* 高度依比例自適應，不裁切 */
-            display: block;
-            transition: transform 0.2s;
-        }
+    h1 {
+        text-align: center;
+        font-size: 1.2rem;
+        color: #333;
+        padding: 20px 0;
+    }
 
-        h1 {
-            text-align: center;
-            font-size: 1.2rem;
-            color: #333;
-            padding: 20px 0;
-        }
-
-        #status { text-align: center; color: #888; padding: 20px; }
-    </style>
+    #status { text-align: center; color: #888; padding: 20px; }
+</style>
 </head>
 <body>
 
