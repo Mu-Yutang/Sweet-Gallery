@@ -8,123 +8,123 @@
         body {
             margin: 0;
             padding: 15px;
-            background-color: #f8f9fa;
+            background-color: #f5f6fa;
             font-family: -apple-system, sans-serif;
         }
 
         h1 {
             text-align: center;
-            color: #444;
-            font-size: 1.3rem;
+            color: #333;
+            font-size: 1.4rem;
             margin-bottom: 25px;
         }
 
-        #status { text-align: center; color: #888; margin-top: 50px; line-height: 1.6; }
+        #status { text-align: center; color: #888; margin-top: 50px; }
 
-        /* 瀑布流外層容器 */
-        .masonry-wrapper {
-            display: flex;
-            gap: 15px;
-            max-width: 1400px;
+        /* 俄羅斯方塊核心設定 */
+        .tetris-wrapper {
+            display: grid;
+            /* 定義最小單位方塊為 120px，會根據螢幕自動延伸 */
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            grid-auto-rows: 120px; /* 每一格的高度也是 120px */
+            grid-auto-flow: dense; /* 【魔法指令】自動把小物件塞入前面的空隙！ */
+            gap: 10px;
+            max-width: 1200px;
             margin: 0 auto;
-            align-items: flex-start;
         }
 
-        /* 每一條直欄的設定 */
-        .masonry-column {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
-
-        /* 圖片設定 */
-        .masonry-column img {
+        .tetris-wrapper img {
             width: 100%;
-            height: auto;
+            height: 100%;
+            /* 為了完美塞滿方塊不留白，必須使用 cover。邊緣會微裁切，但比例絕對不變形 */
+            object-fit: cover; 
             border-radius: 8px;
-            box-shadow: 0 3px 8px rgba(0,0,0,0.1);
-            display: block;
-            transition: opacity 0.3s;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+            cursor: pointer;
+            opacity: 0; /* 預設隱藏，載入完再顯示 */
+            transition: opacity 0.4s ease, transform 0.2s;
         }
 
-        .masonry-column img:active { opacity: 0.8; }
+        .tetris-wrapper img.loaded {
+            opacity: 1; /* 載入完成顯示 */
+        }
 
-        @media (max-width: 768px) {
-            .masonry-wrapper { flex-direction: column; }
+        .tetris-wrapper img:hover {
+            transform: scale(0.98);
         }
     </style>
 </head>
 <body>
 
     <h1>生活紀錄</h1>
-    <div id="status">照片排版中...</div>
+    <div id="status">正在計算俄羅斯方塊落點...</div>
     
-    <div class="masonry-wrapper" id="gallery">
-        </div>
+    <div class="tetris-wrapper" id="gallery"></div>
 
     <script>
         const username = 'Mu-Yutang';
         const repo = 'Sweet-Gallery';
-        // 前輩，路徑幫你修正回 images 資料夾了！
         const folder = 'images'; 
 
         async function loadImages() {
             const gallery = document.getElementById('gallery');
             const status = document.getElementById('status');
-            
-            // 自動判斷是否為根目錄，避免網址多出奇怪的斜線
-            const path = folder ? `/${folder}` : '';
-            const apiUrl = `https://api.github.com/repos/${username}/${repo}/contents${path}`;
+            const apiUrl = `https://api.github.com/repos/${username}/${repo}/contents/${folder}`;
 
             try {
                 const response = await fetch(apiUrl, { cache: "no-cache" });
-                
-                // 增加精準報錯，不再只有死板的失敗訊息
-                if (!response.ok) {
-                    if (response.status === 403) throw new Error('讀取太頻繁，被 GitHub 暫時限制了 (Rate Limit)，請等幾分鐘後重整');
-                    if (response.status === 404) throw new Error(`找不到指定的資料夾：${folder || '根目錄'}`);
-                    throw new Error(`連線錯誤代碼: ${response.status}`);
-                }
-                
+                if (!response.ok) throw new Error(`連線錯誤: ${response.status}`);
                 const data = await response.json();
 
                 if (Array.isArray(data)) {
                     const images = data.filter(f => f.name.match(/\.(jpg|jpeg|png|gif|webp)$/i)).reverse();
 
-                    // 如果資料夾裡沒圖片，必須把字顯示出來
                     if (images.length === 0) {
-                        status.innerText = "資料夾裡目前沒有找到圖片喔！";
-                        status.style.display = 'block';
+                        status.innerText = "資料夾裡目前沒有圖片喔！";
                         return;
                     }
 
                     status.style.display = 'none';
 
-                    // 判斷當前螢幕寬度，決定要切成幾欄
-                    let colCount = window.innerWidth > 1024 ? 3 : window.innerWidth > 768 ? 2 : 1;
-                    let columns = [];
-
-                    for (let i = 0; i < colCount; i++) {
-                        let col = document.createElement('div');
-                        col.className = 'masonry-column';
-                        columns.push(col);
-                        gallery.appendChild(col);
-                    }
-
-                    images.forEach((file, index) => {
+                    images.forEach((file) => {
                         const img = document.createElement('img');
-                        img.src = file.download_url;
-                        img.loading = "lazy";
-                        img.onclick = () => window.open(file.download_url, '_blank');
                         
-                        columns[index % colCount].appendChild(img);
+                        // 關鍵：等待圖片載入，測量真實尺寸後再決定它佔幾格
+                        img.onload = function() {
+                            const w = this.naturalWidth;
+                            const h = this.naturalHeight;
+                            const ratio = w / h;
+
+                            let colSpan = 2; // 預設佔用 2x2 格
+                            let rowSpan = 2;
+
+                            // 自動判斷圖片形狀來分配方塊大小
+                            if (w < 500 || h < 500) {
+                                // 小圖片區間
+                                colSpan = 1; rowSpan = 1;
+                                if (ratio > 1.5) colSpan = 2; // 扁平小圖
+                                if (ratio < 0.7) rowSpan = 2; // 細長小圖 (如右鍵選單)
+                            } else {
+                                // 大圖片區間
+                                if (ratio > 1.8) { colSpan = 3; rowSpan = 2; } // 超寬遊戲圖
+                                else if (ratio < 0.8) { colSpan = 2; rowSpan = 3; } // 直立長圖
+                            }
+
+                            // 賦予該圖片專屬的佔位面積
+                            this.style.gridColumnEnd = `span ${colSpan}`;
+                            this.style.gridRowEnd = `span ${rowSpan}`;
+                            
+                            // 顯示圖片
+                            this.classList.add('loaded');
+                        };
+
+                        img.src = file.download_url;
+                        img.onclick = () => window.open(file.download_url, '_blank'); // 點擊看完整大圖
+                        gallery.appendChild(img);
                     });
                 }
             } catch (e) {
-                // 如果出錯，把錯誤訊息直接印在畫面上方便前輩除錯
                 status.innerText = `讀取失敗：${e.message}`;
-                status.style.display = 'block';
             }
         }
 
