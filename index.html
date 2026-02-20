@@ -19,29 +19,29 @@
             margin-bottom: 25px;
         }
 
-        #status { text-align: center; color: #888; margin-top: 50px; }
+        #status { text-align: center; color: #888; margin-top: 50px; line-height: 1.6; }
 
         /* 瀑布流外層容器 */
         .masonry-wrapper {
             display: flex;
-            gap: 15px; /* 直欄之間的左右間距 */
+            gap: 15px;
             max-width: 1400px;
             margin: 0 auto;
-            align-items: flex-start; /* 讓每一欄的內容各自往上對齊，不會被強行拉長 */
+            align-items: flex-start;
         }
 
         /* 每一條直欄的設定 */
         .masonry-column {
-            flex: 1; /* 讓所有欄位平分寬度，填滿畫面 */
+            flex: 1;
             display: flex;
             flex-direction: column;
-            gap: 15px; /* 圖片之間的上下間距 */
+            gap: 15px;
         }
 
         /* 圖片設定 */
         .masonry-column img {
-            width: 100%; /* 寬度撐滿自己所在的直欄 */
-            height: auto; /* 高度依原比例縮放，不裁切、不變形 */
+            width: 100%;
+            height: auto;
             border-radius: 8px;
             box-shadow: 0 3px 8px rgba(0,0,0,0.1);
             display: block;
@@ -50,7 +50,6 @@
 
         .masonry-column img:active { opacity: 0.8; }
 
-        /* 響應式設計：手機螢幕變窄時，自動變回單欄模式 */
         @media (max-width: 768px) {
             .masonry-wrapper { flex-direction: column; }
         }
@@ -67,29 +66,45 @@
     <script>
         const username = 'Mu-Yutang';
         const repo = 'Sweet-Gallery';
-        const folder = ''; // 掃描根目錄
+        // 前輩，路徑幫你修正回 images 資料夾了！
+        const folder = 'images'; 
 
         async function loadImages() {
             const gallery = document.getElementById('gallery');
             const status = document.getElementById('status');
-            const apiUrl = `https://api.github.com/repos/${username}/${repo}/contents`;
+            
+            // 自動判斷是否為根目錄，避免網址多出奇怪的斜線
+            const path = folder ? `/${folder}` : '';
+            const apiUrl = `https://api.github.com/repos/${username}/${repo}/contents${path}`;
 
             try {
                 const response = await fetch(apiUrl, { cache: "no-cache" });
-                if (!response.ok) throw new Error();
+                
+                // 增加精準報錯，不再只有死板的失敗訊息
+                if (!response.ok) {
+                    if (response.status === 403) throw new Error('讀取太頻繁，被 GitHub 暫時限制了 (Rate Limit)，請等幾分鐘後重整');
+                    if (response.status === 404) throw new Error(`找不到指定的資料夾：${folder || '根目錄'}`);
+                    throw new Error(`連線錯誤代碼: ${response.status}`);
+                }
                 
                 const data = await response.json();
-                status.style.display = 'none';
 
                 if (Array.isArray(data)) {
-                    // 抓出圖片並倒序（最新在上）
                     const images = data.filter(f => f.name.match(/\.(jpg|jpeg|png|gif|webp)$/i)).reverse();
 
-                    // 判斷當前螢幕寬度，決定要切成幾欄 (電腦3欄，平板2欄，手機1欄)
+                    // 如果資料夾裡沒圖片，必須把字顯示出來
+                    if (images.length === 0) {
+                        status.innerText = "資料夾裡目前沒有找到圖片喔！";
+                        status.style.display = 'block';
+                        return;
+                    }
+
+                    status.style.display = 'none';
+
+                    // 判斷當前螢幕寬度，決定要切成幾欄
                     let colCount = window.innerWidth > 1024 ? 3 : window.innerWidth > 768 ? 2 : 1;
                     let columns = [];
 
-                    // 預先建立好隱形的直欄
                     for (let i = 0; i < colCount; i++) {
                         let col = document.createElement('div');
                         col.className = 'masonry-column';
@@ -97,19 +112,19 @@
                         gallery.appendChild(col);
                     }
 
-                    // 把照片像發撲克牌一樣，輪流派發給每一欄
                     images.forEach((file, index) => {
                         const img = document.createElement('img');
                         img.src = file.download_url;
                         img.loading = "lazy";
-                        img.onclick = () => window.open(file.download_url, '_blank'); // 點擊看大圖
+                        img.onclick = () => window.open(file.download_url, '_blank');
                         
-                        // 計算這張照片該進哪一欄 (0, 1, 2, 0, 1, 2...)
                         columns[index % colCount].appendChild(img);
                     });
                 }
             } catch (e) {
-                status.innerText = "讀取失敗，請確認設定。";
+                // 如果出錯，把錯誤訊息直接印在畫面上方便前輩除錯
+                status.innerText = `讀取失敗：${e.message}`;
+                status.style.display = 'block';
             }
         }
 
