@@ -3,104 +3,114 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>甜蜜相簿</title>
+    <title>相簿</title>
     <style>
+        /* 基礎樣式 */
         body {
             margin: 0;
-            padding: 20px;
-            background-color: #ffffff; /* 給太座用的，改簡約白 */
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            padding: 10px;
+            background-color: #f8f9fa;
+            font-family: -apple-system, system-ui, sans-serif;
         }
-        .container {
-            max-width: 600px; /* 縮小寬度，在手機看更像相簿 */
+
+        h1 {
+            text-align: center;
+            color: #444;
+            font-size: 1.2rem;
+            margin: 20px 0;
+        }
+
+        /* 自動填充容器：CSS Grid */
+        .gallery-grid {
+            display: grid;
+            /* 自動填充：每張圖最小 150px，自動平分剩餘空間 */
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            grid-gap: 8px; /* 照片間距 */
+            padding: 5px;
+        }
+
+        /* 圖片容器：確保比例一致 */
+        .img-item {
+            position: relative;
             width: 100%;
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
+            padding-top: 100%; /* 1:1 正方形填充 */
+            overflow: hidden;
+            border-radius: 4px;
+            background-color: #eee;
         }
-        img {
+
+        .img-item img {
+            position: absolute;
+            top: 0;
+            left: 0;
             width: 100%;
-            height: auto;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            display: block;
+            height: 100%;
+            object-fit: cover; /* 自動填充並裁切多餘部分，讓排版整齊 */
+            transition: transform 0.3s ease;
         }
-        h1 { color: #333; font-size: 1.5rem; margin-bottom: 20px; }
-        .loading { color: #888; font-size: 0.9rem; }
+
+        /* 點擊效果 */
+        .img-item img:active {
+            transform: scale(0.95);
+        }
+
+        #status {
+            text-align: center;
+            color: #888;
+            margin-top: 50px;
+        }
     </style>
 </head>
 <body>
 
     <h1>生活紀錄</h1>
-    <div id="status" class="loading">照片讀取中...</div>
-    
-    <div class="container" id="gallery"></div>
+    <div id="status">照片載入中...</div>
+    <div class="gallery-grid" id="gallery"></div>
 
-<script>
-    // 基礎設定 (請確保這兩項完全正確)
-    const username = 'Mu-Yutang';
-    const repo = 'Sweet-Gallery';
-    const folder = 'images'; // 資料夾名稱
+    <script>
+        // 設定區
+        const username = 'Mu-Yutang';
+        const repo = 'Sweet-Gallery';
+        const folder = 'images'; 
 
-    async function loadImages() {
-        const gallery = document.getElementById('gallery');
-        const status = document.getElementById('status');
-        
-        // GitHub API 獲取目錄清單的網址
-        const apiUrl = `https://api.github.com/repos/${username}/${repo}/contents/${folder}`;
+        async function loadImages() {
+            const gallery = document.getElementById('gallery');
+            const status = document.getElementById('status');
+            const apiUrl = `https://api.github.com/repos/${username}/${repo}/contents/${folder}`;
 
-        try {
-            // 加上 cache: "no-cache" 確保每次上傳新照片都能即時看到
-            const response = await fetch(apiUrl, { cache: "no-cache" });
-            
-            if (!response.ok) {
-                if (response.status === 404) throw new Error('找不到資料夾，請確認 images 資料夾是否存在');
-                if (response.status === 403) throw new Error('API 請求過於頻繁，請稍後再試');
-                throw new Error(`連線錯誤: ${response.status}`);
-            }
-            
-            const data = await response.json();
-            
-            if (Array.isArray(data)) {
-                // 過濾出所有圖片檔案
-                const imageFiles = data.filter(file => 
-                    file.name.match(/\.(jpg|jpeg|png|gif|webp|bmp)$/i)
-                );
-
-                if (imageFiles.length === 0) {
-                    status.innerText = "資料夾內目前沒有圖片檔案喔！";
-                    return;
-                }
-
-                // 清空狀態並開始放圖
+            try {
+                const response = await fetch(apiUrl, { cache: "no-cache" });
+                if (!response.ok) throw new Error();
+                
+                const data = await response.json();
                 status.style.display = 'none';
-                gallery.innerHTML = ''; 
 
-                // 按照檔名排序（通常 1.jpg, 2.jpg 會順序排列，若要最新的在前可加 .reverse()）
-                imageFiles.forEach(file => {
-                    const img = document.createElement('img');
-                    // 使用 download_url 是 GitHub API 提供最直接的原始圖檔連結
-                    img.src = file.download_url;
-                    img.loading = "lazy"; // 延遲載入，省流量
-                    img.alt = file.name;
-                    
-                    // 點擊圖片可以看原圖（小貼心功能）
-                    img.onclick = () => window.open(file.download_url, '_blank');
-                    
-                    gallery.appendChild(img);
-                });
+                if (Array.isArray(data)) {
+                    // 過濾並倒序（最新照片在前）
+                    const images = data.filter(f => f.name.match(/\.(jpg|jpeg|png|gif|webp)$/i)).reverse();
+
+                    images.forEach(file => {
+                        // 建立填充容器
+                        const div = document.createElement('div');
+                        div.className = 'img-item';
+
+                        const img = document.createElement('img');
+                        img.src = file.download_url;
+                        img.loading = "lazy";
+                        
+                        // 點擊看大圖
+                        img.onclick = () => window.open(file.download_url, '_blank');
+
+                        div.appendChild(img);
+                        gallery.appendChild(div);
+                    });
+                }
+            } catch (e) {
+                status.innerText = "載入失敗，請確認 images 資料夾內有照片。";
             }
-        } catch (error) {
-            console.error("Debug info:", error);
-            status.innerHTML = `載入失敗：${error.message}<br><small style="color:#ccc">請確認 Repo 是 Public 且資料夾路徑正確</small>`;
         }
-    }
 
-    // 啟動！
-    loadImages();
-</script>
+        loadImages();
+    </script>
 </body>
 </html>
