@@ -39,45 +39,68 @@
     
     <div class="container" id="gallery"></div>
 
-    <script>
-        // 已根據前輩的截圖修正設定
-        const username = 'Mu-Yutang';
-        const repo = 'Sweet-Gallery';
-        const folder = 'images'; 
+<script>
+    // 基礎設定 (請確保這兩項完全正確)
+    const username = 'Mu-Yutang';
+    const repo = 'Sweet-Gallery';
+    const folder = 'images'; // 資料夾名稱
 
-        async function loadImages() {
-            const gallery = document.getElementById('gallery');
-            const status = document.getElementById('status');
+    async function loadImages() {
+        const gallery = document.getElementById('gallery');
+        const status = document.getElementById('status');
+        
+        // GitHub API 獲取目錄清單的網址
+        const apiUrl = `https://api.github.com/repos/${username}/${repo}/contents/${folder}`;
+
+        try {
+            // 加上 cache: "no-cache" 確保每次上傳新照片都能即時看到
+            const response = await fetch(apiUrl, { cache: "no-cache" });
             
-            // GitHub API 網址
-            const apiUrl = `https://api.github.com/repos/${username}/${repo}/contents/${folder}`;
-
-            try {
-                const response = await fetch(apiUrl);
-                if (!response.ok) throw new Error('連線失敗');
-                
-                const data = await response.json();
-                status.style.display = 'none'; // 讀取成功就隱藏文字
-
-                if (Array.isArray(data)) {
-                    // 這裡多做一個反轉，讓最新上傳的照片(檔名大或新)排在上面
-                    data.reverse().forEach(file => {
-                        if (file.name.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
-                            const img = document.createElement('img');
-                            // 使用 raw.githubusercontent 連結，讀取更穩定
-                            img.src = `https://raw.githubusercontent.com/${username}/${repo}/main/${folder}/${file.name}`;
-                            img.loading = "lazy";
-                            gallery.appendChild(img);
-                        }
-                    });
-                }
-            } catch (error) {
-                console.error("Error:", error);
-                status.innerText = "目前暫時無法載入照片，請稍後再試。";
+            if (!response.ok) {
+                if (response.status === 404) throw new Error('找不到資料夾，請確認 images 資料夾是否存在');
+                if (response.status === 403) throw new Error('API 請求過於頻繁，請稍後再試');
+                throw new Error(`連線錯誤: ${response.status}`);
             }
-        }
+            
+            const data = await response.json();
+            
+            if (Array.isArray(data)) {
+                // 過濾出所有圖片檔案
+                const imageFiles = data.filter(file => 
+                    file.name.match(/\.(jpg|jpeg|png|gif|webp|bmp)$/i)
+                );
 
-        loadImages();
-    </script>
+                if (imageFiles.length === 0) {
+                    status.innerText = "資料夾內目前沒有圖片檔案喔！";
+                    return;
+                }
+
+                // 清空狀態並開始放圖
+                status.style.display = 'none';
+                gallery.innerHTML = ''; 
+
+                // 按照檔名排序（通常 1.jpg, 2.jpg 會順序排列，若要最新的在前可加 .reverse()）
+                imageFiles.forEach(file => {
+                    const img = document.createElement('img');
+                    // 使用 download_url 是 GitHub API 提供最直接的原始圖檔連結
+                    img.src = file.download_url;
+                    img.loading = "lazy"; // 延遲載入，省流量
+                    img.alt = file.name;
+                    
+                    // 點擊圖片可以看原圖（小貼心功能）
+                    img.onclick = () => window.open(file.download_url, '_blank');
+                    
+                    gallery.appendChild(img);
+                });
+            }
+        } catch (error) {
+            console.error("Debug info:", error);
+            status.innerHTML = `載入失敗：${error.message}<br><small style="color:#ccc">請確認 Repo 是 Public 且資料夾路徑正確</small>`;
+        }
+    }
+
+    // 啟動！
+    loadImages();
+</script>
 </body>
 </html>
